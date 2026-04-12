@@ -62,7 +62,15 @@ static int gaomon_minor_no; /* minor number assigned to our device driver */
 
 static struct input_dev *tablet_input;
 static struct input_dev *stylus_input;
-//don't need a struct input_dev for both keyboard and mouse input
+//we need a struct input_dev for both keyboard and mouse input
+
+#define MAX_X_COORD 0x10cda
+#define MAX_Y_COORD 0x972e
+#define MAX_PRESSURE 0x1fff
+#define Y_AXIS_PADDING 0x900
+#define X_AXIS_OFFSET 0xc0
+#define Y_AXIS_OFFSET 0x140
+
 
 enum gaomon_tablet_buttons{
         NONE,
