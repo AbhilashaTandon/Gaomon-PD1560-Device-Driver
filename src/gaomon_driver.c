@@ -751,12 +751,12 @@ static int __init gaomon_driver_init(void){
         int y_axis_shift = 0x900;
         //0x1599 adjustments done to correctly map to virtualbox window size
 
-        input_set_abs_params(gaomon_input, ABS_X,          -X_AXIS_OFFSET, MAX_X_COORD - X_AXIS_OFFSET, 0, 0);
-        input_set_abs_params(gaomon_input, ABS_Y,          Y_AXIS_PADDING - Y_AXIS_OFFSET, MAX_Y_COORD - Y_AXIS_PADDING - Y_AXIS_OFFSET,  0, 0);
+        input_set_abs_params(stylus_input, ABS_X,          -X_AXIS_OFFSET, MAX_X_COORD - X_AXIS_OFFSET, 0, 0);
+        input_set_abs_params(stylus_input, ABS_Y,          Y_AXIS_PADDING - Y_AXIS_OFFSET, MAX_Y_COORD - Y_AXIS_PADDING - Y_AXIS_OFFSET,  0, 0);
         //these values are specific to my tablet and screen size 
-        input_set_abs_params(gaomon_input, ABS_PRESSURE,   0, MAX_PRESSURE,  0, 0);
-        input_abs_set_res(gaomon_input, ABS_X, 200);
-        input_abs_set_res(gaomon_input, ABS_Y, 200);
+        input_set_abs_params(stylus_input, ABS_PRESSURE,   0, MAX_PRESSURE,  0, 0);
+        input_abs_set_res(stylus_input, ABS_X, 200);
+        input_abs_set_res(stylus_input, ABS_Y, 200);
 
 
         error_code = input_register_device(stylus_input);
