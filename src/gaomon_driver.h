@@ -60,6 +60,10 @@ static int gaomon_minor_no; /* minor number assigned to our device driver */
 #define WRITES_IN_FLIGHT	8
 /* arbitrarily chosen */
 
+static struct input_dev *tablet_input;
+static struct input_dev *stylus_input;
+//we need a struct input_dev for both keyboard and mouse input
+
 #define MAX_X_COORD 0x10cda
 #define MAX_Y_COORD 0x972e
 #define MAX_PRESSURE 0x1fff
@@ -67,8 +71,6 @@ static int gaomon_minor_no; /* minor number assigned to our device driver */
 #define X_AXIS_OFFSET 0xc0
 #define Y_AXIS_OFFSET 0x140
 
-static struct input_dev *gaomon_input;
-//don't need a struct input_dev for both keyboard and mouse input
 
 enum gaomon_tablet_buttons{
         NONE,
@@ -107,6 +109,8 @@ struct usb_gaomon {
 	unsigned long		        disconnected:1;
 	wait_queue_head_t       	input_wait;		/* to wait for an ongoing read */
         enum gaomon_tablet_buttons      button_pressed;         /* what button is currently pressed on tablet */
+        bool                            stylus_hover;           /* stylus hovering over screen */ 
+        bool                            stylus_touch;           /* stylus hovering over screen */ 
 };
 #define to_gaomon_dev(d) container_of(d, struct usb_gaomon, kref)
 

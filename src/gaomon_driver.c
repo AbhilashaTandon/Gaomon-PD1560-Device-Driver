@@ -48,19 +48,19 @@ static void handle_button_input(struct usb_gaomon *dev, unsigned char *buf_pos){
 
         enum gaomon_tablet_buttons button = decode_button_code(button_code);
 
-        if(gaomon_input == NULL){
+        if(tablet_input == NULL){
                 pr_info("%s - Keyboard input device uninitialized.\n", DRIVER_NAME);
                 return;
         }
         else if(button != NONE){
                 //button press
-                input_report_key(gaomon_input, gaomon_key_bindings[button], 1);
+                input_report_key(tablet_input, gaomon_key_bindings[button], 1);
                 dev->button_pressed = button;
         }
         else{
                 //button release
-                input_report_key(gaomon_input, gaomon_key_bindings[dev->button_pressed], 0);
-                input_sync(gaomon_input);
+                input_report_key(tablet_input, gaomon_key_bindings[dev->button_pressed], 0);
+                input_sync(tablet_input);
                 dev->button_pressed = NONE;
         }
 
@@ -71,24 +71,23 @@ static void handle_pen_input(struct usb_gaomon *dev, unsigned char *buf_pos, boo
         signed long long int y_coord = (*(buf_pos + 11) << 24) + (*(buf_pos + 10) << 16) + (*(buf_pos + 5) << 8) + *(buf_pos + 4); 
         unsigned int pen_pressure = (*(buf_pos + 7) << 8) + *(buf_pos + 6);
 
-        if(gaomon_input == NULL){
+        if(stylus_input == NULL){
                 pr_info("%s - Keyboard input device uninitialized.\n", DRIVER_NAME);
         }
 
-        input_report_key(gaomon_input, BTN_TOOL_PEN, 1);
 
-        input_report_abs(gaomon_input, ABS_X, x_coord);
-        input_report_abs(gaomon_input, ABS_Y, y_coord);
+        input_report_abs(stylus_input, ABS_X, x_coord);
+        input_report_abs(stylus_input, ABS_Y, y_coord);
         if(pen_press){
                 //if pen actually touched tablet, otherwise we were just hovering
-                input_report_abs(gaomon_input, ABS_PRESSURE, pen_pressure);
-                input_report_key(gaomon_input, BTN_TOUCH, 1);
+                input_report_abs(stylus_input, ABS_PRESSURE, pen_pressure);
+                input_sync(stylus_input);
         }
         else{
-                input_report_abs(gaomon_input, ABS_PRESSURE, 0);
-                input_report_key(gaomon_input, BTN_TOUCH, 0);
+                input_report_abs(stylus_input, ABS_PRESSURE, 0);
+                input_report_key(stylus_input, BTN_TOUCH, 0);
+                input_sync(stylus_input);
         }
-        input_sync(gaomon_input);
 
         pr_info("%s - %lld\t%lld\t%d\n", DRIVER_NAME, x_coord, y_coord, pen_pressure);
 }
@@ -508,6 +507,8 @@ static int gaomon_probe(struct usb_interface *interface,
         dev->input_interval = endpoint->bInterval;
         dev->input_buffer = kmalloc(dev->input_size, GFP_KERNEL);
         dev->button_pressed = NONE;
+        dev->stylus_hover = false;
+        dev->stylus_touch = false;
         if (!dev->input_buffer) {
                 retval = -ENOMEM;
                 goto error;
@@ -671,11 +672,27 @@ static int __init gaomon_driver_init(void){
 
         /* SET UP BUTTON INPUTS */
 
-        gaomon_input = input_allocate_device();
+        tablet_input = input_allocate_device();
+        tablet_input->name = "Gaomon Tablet Buttons";
 
-        if(!gaomon_input){
-                pr_err("%s - Could not allocate input device for tablet buttons.\n", DRIVER_NAME);
-                //goto unalloc_key;
+        set_bit(EV_KEY, tablet_input->evbit);
+
+        set_bit(EV_KEY, tablet_input->evbit);
+        set_bit(KEY_A,  tablet_input->keybit);
+        set_bit(KEY_B,  tablet_input->keybit);
+        set_bit(KEY_C,  tablet_input->keybit);
+        set_bit(KEY_D,  tablet_input->keybit);
+        set_bit(KEY_E,  tablet_input->keybit);
+        set_bit(KEY_F,  tablet_input->keybit);
+        set_bit(KEY_G,  tablet_input->keybit);
+        set_bit(KEY_H,  tablet_input->keybit);
+        set_bit(KEY_I,  tablet_input->keybit);
+        set_bit(KEY_J,  tablet_input->keybit);
+
+        error_code = input_register_device(tablet_input);
+        if(error_code){
+                pr_alert("%s - Error registering tablet input device. Error code %d.\n", DRIVER_NAME, error_code);
+                //goto unreg_key;
                 return error_code;
         }
 
@@ -688,62 +705,48 @@ static int __init gaomon_driver_init(void){
          };
          */
 
-        gaomon_input->name = "Gaomon Tablet Buttons";  
 
+        /*
         struct input_id id_info = {
                 .bustype = BUS_USB,
                 .vendor = USB_GAOMON_VENDOR_ID,
                 .product = USB_GAOMON_PRODUCT_ID,
                 .version = 1
         };
+        */
 
         /*
-           gaomon_input->id = id_info;
+           stylus_input->id = id_info;
         //idk if this will work
         //
         */
 
-        set_bit(EV_KEY, gaomon_input->evbit);
-        set_bit(KEY_A,  gaomon_input->keybit);
-        set_bit(KEY_B,  gaomon_input->keybit);
-        set_bit(KEY_C,  gaomon_input->keybit);
-        set_bit(KEY_D,  gaomon_input->keybit);
-        set_bit(KEY_E,  gaomon_input->keybit);
-        set_bit(KEY_F,  gaomon_input->keybit);
-        set_bit(KEY_G,  gaomon_input->keybit);
-        set_bit(KEY_H,  gaomon_input->keybit);
-        set_bit(KEY_I,  gaomon_input->keybit);
-        set_bit(KEY_J,  gaomon_input->keybit);
-        set_bit(BTN_TOOL_PEN,  gaomon_input->keybit);
-        set_bit(BTN_TOUCH,  gaomon_input->keybit);
+        /*
+        */
+
         //TODO: replace this with stuff we read from config file
 
-        error_code = input_register_device(gaomon_input);
-        if(error_code){
-                pr_alert("%s - Error registering button input device. Error code %d.\n", DRIVER_NAME, error_code);
-                //goto unreg_key;
-                return error_code;
-        }
 
         /* SET UP STYLUS INPUTS */
 
-        /*
-        pen_input = input_allocate_device();
 
-        if(!pen_input){
-                pr_err("%s - Could not allocate input device for stylus inputs.\n", DRIVER_NAME);
-                //goto unalloc_pen;
+        stylus_input = input_allocate_device();
+
+        stylus_input->name = "Gaomon Stylus";  
+
+        if(!stylus_input){
+                pr_err("%s - Could not allocate input device for tablet buttons.\n", DRIVER_NAME);
+                //goto unalloc_key;
                 return error_code;
         }
+        set_bit(EV_KEY, stylus_input->evbit);
+        set_bit(BTN_TOOL_PEN,  stylus_input->keybit);
+        set_bit(BTN_TOUCH,  stylus_input->keybit);
 
-        pen_input->name = "Gaomon Stylus";
-        pen_input->id = id_info;
-        */
-
-        set_bit(EV_ABS,         gaomon_input->evbit);
-        set_bit(ABS_X,          gaomon_input->absbit);
-        set_bit(ABS_Y,          gaomon_input->absbit);
-        set_bit(ABS_PRESSURE,   gaomon_input->absbit);
+        set_bit(EV_ABS,         stylus_input->evbit);
+        set_bit(ABS_X,          stylus_input->absbit);
+        set_bit(ABS_Y,          stylus_input->absbit);
+        set_bit(ABS_PRESSURE,   stylus_input->absbit);
 
         int y_axis_shift = 0x900;
         //0x1599 adjustments done to correctly map to virtualbox window size
@@ -755,14 +758,13 @@ static int __init gaomon_driver_init(void){
         input_abs_set_res(gaomon_input, ABS_X, 200);
         input_abs_set_res(gaomon_input, ABS_Y, 200);
 
-        /*      
-        error_code = input_register_device(gaomon_input);
+
+        error_code = input_register_device(stylus_input);
         if(error_code){
                 pr_alert("%s - Error registering stylus input device. Error code %d.\n", DRIVER_NAME, error_code);
-                //goto unreg_pen;
+                //goto unreg_key;
                 return error_code;
         }
-        */
 
         //TODO: add proper error handling with deallocation to prevent memory leaks
 
@@ -774,7 +776,7 @@ static int __init gaomon_driver_init(void){
 static void __exit gaomon_driver_exit(void){
         pr_info("%s - Goodbye!", DRIVER_NAME);
 
-        input_unregister_device(gaomon_input);
+        input_unregister_device(stylus_input);
         usb_deregister(&gaomon_driver);
         cdev_del(&gaomon_char_device);
         unregister_chrdev_region(gaomon_device, 1);
